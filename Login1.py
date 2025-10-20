@@ -6,7 +6,7 @@ import sqlite3
 DB_NAME = "usuarios.db"
 
 
-# ---------------- CLASE DE BASE DE DATOS ----------------
+'''---------------- CLASE DE BASE DE DATOS ----------------'''
 class UsuarioDB:
     @staticmethod
     def _conn():
@@ -38,7 +38,7 @@ class UsuarioDB:
             return cur.fetchone() is not None
 
 
-# ---------------- INTERFAZ GRÁFICA ----------------
+'''---------------- INTERFAZ GRÁFICA ----------------'''
 ventana = tk.Tk()
 ventana.title("TicketManager - Login")
 ventana.geometry("400x350")
@@ -180,9 +180,9 @@ def AbrirMenuPrincipal(Usuario):
 
     ''' ----- DATOS DE EJEMPLO -----'''
     datos = [
-        (10, "Post. Jerter", "Open", "Juan Pérez", "19 Mar", "Alta"),
-        (20, "Repare rgn", "Open", "María Lopez", "29 Mar", "Media"),
-        (30, "Mart rgn", "Media", "Pedro Gonzalez", "19 Mar", "Baja"),
+        (10, "Reparacion de impresora", "Open", "Juan Pérez", "19 Mar", "Alta"),
+        (20, "Revision de router", "Open", "María Lopez", "29 Mar", "Media"),
+        (30, "Revision de computadora", "Pedro Gonzalez", "19 Mar", "Baja"),
         (40, "Mantenimiento", "Baja", "Sergio Mertra", "19 Abr", "Baja")
     ]
     for fila in datos:
