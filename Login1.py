@@ -1,16 +1,18 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 import sqlite3
 
-DB_NAME = "usuarios.db"
+''' ===================== BASES DE DATOS ====================='''
+DB_USUARIOS = "usuarios.db"
+DB_TICKETS = "tickets.db"
 
 
-'''---------------- CLASE DE BASE DE DATOS ----------------'''
+
+''' ---------- Tabla Usuarios ----------'''
 class UsuarioDB:
     @staticmethod
     def _conn():
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_USUARIOS)
         conn.row_factory = sqlite3.Row
         conn.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
@@ -27,6 +29,7 @@ class UsuarioDB:
         with UsuarioDB._conn() as conn:
             try:
                 conn.execute("INSERT INTO usuarios (nombre, contrasena) VALUES (?, ?)", (usuario, contrasena))
+                conn.commit()
                 return True
             except sqlite3.IntegrityError:
                 return False  # Usuario duplicado
@@ -38,7 +41,61 @@ class UsuarioDB:
             return cur.fetchone() is not None
 
 
-'''---------------- INTERFAZ GRÁFICA ----------------'''
+
+''' ---------- Tabla Tickets ----------'''
+class TicketDB:
+    @staticmethod
+    def _conn():
+        conn = sqlite3.connect(DB_TICKETS)
+        conn.row_factory = sqlite3.Row
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS tickets (
+                id_ticket INTEGER PRIMARY KEY AUTOINCREMENT,
+                titulo TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                tecnico TEXT NOT NULL,
+                fecha TEXT NOT NULL,
+                prioridad TEXT NOT NULL
+            );
+        """)
+        conn.commit()
+        return conn
+
+    @staticmethod
+    def insertar(titulo, estado, tecnico, fecha, prioridad):
+        with TicketDB._conn() as conn:
+            conn.execute(
+                "INSERT INTO tickets (titulo, estado, tecnico, fecha, prioridad) VALUES (?, ?, ?, ?, ?)",
+                (titulo, estado, tecnico, fecha, prioridad)
+            )
+            conn.commit()
+
+    @staticmethod
+    def obtener_todos():
+        with TicketDB._conn() as conn:
+            cur = conn.execute("SELECT * FROM tickets")
+            return cur.fetchall()
+
+
+
+''' ---------- Inicializa datos de ejemplo ----------'''
+def inicializar_tickets():
+    with TicketDB._conn() as conn:
+        cur = conn.execute("SELECT COUNT(*) AS total FROM tickets")
+        total = cur.fetchone()["total"]
+        if total == 0:
+            datos = [
+                ("Reparacion de router", "Open", "Juan Pérez", "19 Mar", "Alta"),
+                ("Revicion de impresora", "Open", "María Lopez", "29 Mar", "Media"),
+                ("Mantenimiento de pc" "Open", "Pedro Gonzalez", "19 Mar", "Baja"),
+                ("Mantenimiento de impresora", "Open", "Sergio Mertra", "19 Abr", "Baja")
+            ]
+            for fila in datos:
+                TicketDB.insertar(*fila)
+
+
+
+'''===================== INTERFAZ LOGIN ====================='''
 ventana = tk.Tk()
 ventana.title("TicketManager - Login")
 ventana.geometry("400x350")
@@ -101,13 +158,18 @@ def ValidarLogin():
         messagebox.showerror("Error", "Usuario o contraseña incorrectos.")
 
 
+
+
+''' ===================== PANEL PRINCIPAL ====================='''
 def AbrirMenuPrincipal(Usuario):
+    inicializar_tickets()  # Cargar datos de ejemplo si no existen
+
     menu = tk.Tk()
     menu.title("Panel de Control - TicketManager")
     menu.geometry("900x500")
     menu.configure(bg="#e9f1f5")
 
-    '''----- MENÚ IZQUIERDO -----'''
+    # --- Menú lateral ---
     MenuLateral = tk.Frame(menu, bg="#0f3b53", width=200)
     MenuLateral.pack(side="left", fill="y")
 
@@ -122,9 +184,8 @@ def AbrirMenuPrincipal(Usuario):
             relief="flat",
             activebackground="#1f5973",
             cursor="hand2"
-        ).pack(fill="x", pady=5, ipady=8)
+        ).pack(fill="x", pady=5, ipadx=8)
 
-    '''----- BOTÓN CERRAR SESIÓN -----'''
     tk.Button(
         MenuLateral,
         text="Cerrar sesión",
@@ -134,9 +195,9 @@ def AbrirMenuPrincipal(Usuario):
         cursor="hand2",
         font=("Arial", 11, "bold"),
         command=menu.destroy
-    ).pack(side="bottom", fill="x", pady=10, ipady=8)
+    ).pack(side="bottom", fill="x", pady=10, ipadx=8)
 
-    '''----- PANEL DERECHO -----'''
+    ''' --- Panel derecho ---'''
     Panel = tk.Frame(menu, bg="white")
     Panel.pack(side="right", fill="both", expand=True, padx=10, pady=10)
 
@@ -148,7 +209,6 @@ def AbrirMenuPrincipal(Usuario):
         fg="#0f3b53"
     ).pack(anchor="w", pady=(10, 15), padx=10)
 
-    ''' ----- FILTROS Y BOTÓN NUEVO -----'''
     Top = tk.Frame(Panel, bg="white")
     Top.pack(fill="x", padx=10)
 
@@ -168,7 +228,6 @@ def AbrirMenuPrincipal(Usuario):
         combo.set(f)
         combo.pack(side="left", padx=5)
 
-    ''' ----- TABLA DE TICKETS -----'''
     Tablat = tk.Frame(Panel, bg="white")
     Tablat.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -178,19 +237,15 @@ def AbrirMenuPrincipal(Usuario):
         Tabla.heading(col, text=col)
         Tabla.column(col, width=120, anchor="center")
 
-    ''' ----- DATOS DE EJEMPLO -----'''
-    datos = [
-        (10, "Reparacion de impresora", "Open", "Juan Pérez", "19 Mar", "Alta"),
-        (20, "Revision de router", "Open", "María Lopez", "29 Mar", "Media"),
-        (30, "Revision de computadora", "Pedro Gonzalez", "19 Mar", "Baja"),
-        (40, "Mantenimiento", "Baja", "Sergio Mertra", "19 Abr", "Baja")
-    ]
-    for fila in datos:
-        Tabla.insert("", "end", values=fila)
+
+
+    ''' --- Cargar datos desde la BD ---'''
+    tickets = TicketDB.obtener_todos()
+    for t in tickets:
+        Tabla.insert("", "end", values=(t["id_ticket"], t["titulo"], t["estado"], t["tecnico"], t["fecha"], t["prioridad"]))
 
     Tabla.pack(fill="both", expand=True)
 
-    '''' ----- BOTONES DE ACCIÓN -----'''
     Botones = tk.Frame(Panel, bg="white")
     Botones.pack(pady=5)
 
@@ -201,7 +256,8 @@ def AbrirMenuPrincipal(Usuario):
     menu.mainloop()
 
 
-'''Interfaz Login'''
+
+''' ===================== INTERFAZ LOGIN PRINCIPAL ====================='''
 tk.Label(
     ventana,
     text="TicketManager",
